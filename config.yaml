@@ -1,0 +1,16 @@
+cookie:
+  expiry_days: 30
+  key: some_signature_key
+  name: some_cookie_name
+credentials:
+  usernames:
+    admin:
+      email: admin@example.com
+      name: admin
+      password: $2b$12$Mx0QqWNulrjJmNBn1I7uSeBOk/59BzwpljilvaTkC19Mr7J9wdjHe
+    user1:
+      email: user1@example.com
+      name: User1
+      password: $2b$12$Mx0QqWNulrjJmNBn1I7uSeBOk/59BzwpljilvaTkC19Mr7J9wdjHe
+pre-authorized:
+  emails: []
