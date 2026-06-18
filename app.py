@@ -350,31 +350,46 @@ def generate_word():
         doc.add_paragraph("(ยังไม่มีรูปโรงแรมที่บันทึกแล้ว)")
 
     # ── ส่วนที่ 3: น้ำมัน ──
-    doc.add_heading("บันทึกการเติมน้ำมัน", level=1)
     fuel_count = 0
     for n in range(1, 21):
         item = st.session_state.fuel.get(n)
-        if not item or not item["locked"]:
+        # เช็คว่ามีการบันทึกข้อมูลแล้ว (locked)
+        if not item or not item.get("locked"):
             continue
+        
         fuel_count += 1
         doc.add_heading(f"การเติมครั้งที่ {n}", level=2)
-        doc.add_paragraph(f"วันที่  : {item.get('date', '-')}")
-        doc.add_paragraph(f"จังหวัด: {item.get('province', '-')}")
+        doc.add_paragraph(f"วันที่: {item.get('date', '-')}   จังหวัด: {item.get('province', '-')}")
 
-        # นับคอลัมน์ที่มีรูปจริง
-        img_data = [(lbl, item.get(k))
-                    for lbl, k in [("ใบเสร็จ","bill"),("ไมล์ก่อนเติม","pre"),("ไมล์หลังเติม","post")]]
-        img_data = [(lbl, d) for lbl, d in img_data if d is not None]
+        # สร้างตาราง 1 แถว 2 คอลัมน์ (ซ้าย=ใบเสร็จ, ขวา=ไมล์)
+        tbl = doc.add_table(rows=1, cols=2)
+        tbl.style = "Table Grid"
+        tbl.autofit = False
+        tbl.columns[0].width = Inches(3.5) # ปรับความกว้างฝั่งซ้ายให้ใหญ่
+        tbl.columns[1].width = Inches(3.5) # ปรับความกว้างฝั่งขวา
 
-        if img_data:
-            tbl = doc.add_table(rows=2, cols=len(img_data))
-            tbl.style = "Table Grid"
-            for ci, (lbl, raw_data) in enumerate(img_data):
-                tbl.rows[0].cells[ci].text = lbl
-                p   = tbl.rows[1].cells[ci].paragraphs[0]
-                run = p.add_run()
-                _safe_add_picture(run, raw_data, Inches(1.8))
-        doc.add_paragraph("")
+        # ฝั่งซ้าย: ใส่ใบเสร็จ
+        cell_left = tbl.cell(0, 0)
+        p_left = cell_left.paragraphs[0]
+        if item.get("bill"):
+            _safe_add_picture(p_left.add_run(), item["bill"], Inches(4.2))
+        else:
+            p_left.text = "(ไม่มีรูปใบเสร็จ)"
+
+        # ฝั่งขวา: ใส่ไมล์ก่อนและหลังเติม
+        cell_right = tbl.cell(0, 1)
+        
+        # ไมล์ก่อนเติม
+        p_pre = cell_right.add_paragraph("ไมล์ก่อนเติม:")
+        if item.get("pre"):
+            _safe_add_picture(p_pre.add_run(), item["pre"], Inches(2.0))
+            
+        # ไมล์หลังเติม
+        p_post = cell_right.add_paragraph("\nไมล์หลังเติม:")
+        if item.get("post"):
+            _safe_add_picture(p_post.add_run(), item["post"], Inches(2.0))
+
+        doc.add_paragraph("\n") # เว้นบรรทัดระหว่างครั้ง
 
     if fuel_count == 0:
         doc.add_paragraph("(ยังไม่มีรายการเติมน้ำมันที่บันทึกแล้ว)")
@@ -500,15 +515,24 @@ def render_fuel_section():
             else:
                 st.write("✅ บันทึกรายการนี้แล้ว")
                 st.info(f"📅 วันที่: {item['date']} | 📍 จังหวัด: {item['province']}")
-                col_receipt, col_miles = st.columns([2, 1])
+                col_receipt, col_miles = st.columns([3, 1])
+                
                 with col_receipt:
                     if item.get("bill"):
+                        # ฝั่งซ้าย: ใช้ use_container_width=True เพื่อให้ใบเสร็จกางกว้างที่สุดในคอลัมน์
                         st.image(item["bill"], caption="ใบเสร็จ", use_container_width=True)
+                
                 with col_miles:
+                    # ฝั่งขวา: กำหนดความกว้างคงที่ (เช่น 250 พิกเซล) เพื่อให้รูปดูมีขนาดกำลังดี 
+                    # และไมล์ทั้งสองภาพมีขนาดเท่ากันเป๊ะ
                     if item.get("pre"):
-                        st.image(item["pre"], caption="ไมล์ก่อนเติม", use_container_width=True)
+                        # กำหนด width=250 เพื่อให้รูปไมล์ "ก่อนเติม" ขนาดกะทัดรัด
+                        st.image(item["pre"], caption="ไมล์ก่อนเติม", width=250)
+                    
                     if item.get("post"):
-                        st.image(item["post"], caption="ไมล์หลังเติม", use_container_width=True)
+                        # กำหนด width=250 เท่ากัน เพื่อให้รูปไมล์ "หลังเติม" ขนาดกะทัดรัด
+                        st.image(item["post"], caption="ไมล์หลังเติม", width=250)
+                
                 if st.button("✏️ แก้ไขรายการ", key=f"edit_f_{n}"):
                     toggle_lock("fuel", n)
                     st.rerun()
