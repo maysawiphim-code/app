@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "triploggerapp-500006",
+  "private_key_id": "aa4d2829bb5702e17c7201494bed5ddc29e4da13",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDoMPlQPuXDFfx6\nmgp6Q7px0gx/jocg0D/e9KW0SIU4XUHU9wQwyrxgR5a4mNqKN3rDKC71NsTQ1PZQ\n6kupqCyuu3+BFL3Apgjv0RLiMl4QGkxZziTV2PAXkYPyxoI6eiKSxBkndlqdrnHs\nL2wAL9gQnWGJS31H9/wsd6NQHmU7uhWgxEQ2cvvoXwH1YVMV+XvohtCw4KQ4Sanf\nQ04BKTkuQ8gHoE29SK9zLwOlOHAYjfw+C/SeS2N2kA72HXPXuTagfSsVfI7BQt4N\nzX09WIqD+jAOxbejRYAYzFwaJzEstpS+6A45Q1qpSV+j+YJU7MvWHI4TyhNFA/+Y\nc33MtmQFAgMBAAECggEATSZ4sME1du0HR3WHpbh7avZwULH7FFwd3OdNZ+nw2hmi\nljC9o7i5fwRKgGvJscNddxsS/0eDfiBE9/3hxi2rKyQB6dIKesiwj37Y13AE8TTL\nyctFUgkTPcGMJk7vVp7efgXKleItmdcs412edTFwiZTBo+0BY7hyghP+n9B5sq4w\nGozCiTDEO0VHDAbrmdCDYq9btJKUxYX44uCNm6weRHOYmmmPOXuv52EYWT+fodbn\n9lOPKTMtuepmpgbAGCzGQHQ6EKnwUSn/wrXPrn8Sr5gJSFMUgIf9ZIao5lJfH6wi\nGreuh54o2ZRObxY6cZzPZK728JEp3oF8TAYUdU+MwQKBgQD1+rB3w6FfaIoI6uyN\n89/WPgwx6aaTZgMrsr1dJgjnjxVqZhh4iQmm332gtX28psTu/M5FHCWTWZGWn0TY\nTIRJp85uX0gQu8/xsufRzstPPXIMqyt/hnXifE/93d1YvEaw3XtSnNjkg7wOluZS\nOLC4R50o4rY8k3lDO6+5Ol/4PwKBgQDxpn2LG+EQyjTgAjQpwabw3fw86+0GMVN9\ngW6ccd2dmzWMTW0Cf+vIxqfL9gfnh7dBY+dI2HTrnA1Stv6H/owId1Y1OXMd9hd/\nTCj68jv1sf9JkYp0005q3bU0IyOZBshGXOOwhYHHsJbQuqI3uuc7mo4eSN7cVx80\nlesTD/ByuwKBgQCdRid0u/m/FglEAGk1rhuNUWjctQcTsaMPWp5nI32ICN1phVPa\nJcytDLK3gbOeXocGQ0/jskZ4O0myI62SGwJuUcPUoElkoaEoafp9FJq71I7KeNs8\nE43mPROsPyJarS8JwOMsBCtNmMkyDtu+8I5VlTxwOtzISIa9LTmC1kcsYwKBgQCX\nblrsCrt+lwiNfDQOGsGv3ZxM3Re6srx8QNj9Bsn3EyV6V6bBU0KBniPWx8XqTH0F\naEKuvp5+a1taAzz8IgLE52vJjMfb9bSB3Est/xCeBj5RbvgR/7z7cRY1pvOO2NY2\nac1xeCh85+eKw/oV7HUtP8xhpA6si5gNjwkx9+IZMwKBgAV5maF6jH32TqplQcgi\nJx/HUyDe3YQ2cy6HjHCtiTtyZCCnMiXJ4pPShsynswS5FoVfc9TNrSVUc9O7/UfM\n3dPLEc1u5Vm6sJVMGQVgZu62KsiWs5Ro101wIzSte4eGSQGy1KiDb1jtOosXl5Pb\nJzf4M1f809Nly/yelUz2K07j\n-----END PRIVATE KEY-----\n",
+  "client_email": "trip-logger-bot@triploggerapp-500006.iam.gserviceaccount.com",
+  "client_id": "111504611393556254532",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/trip-logger-bot%40triploggerapp-500006.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
