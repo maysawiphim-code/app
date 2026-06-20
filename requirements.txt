@@ -4,3 +4,10 @@ openpyxl
 matplotlib
 python-docx
 streamlit-authenticator
+# เพิ่มแพ็กเกจเหล่านี้เข้า requirements.txt เดิมของโปรเจกต์
+# (ไฟล์เดิมที่มี streamlit, python-docx, streamlit-authenticator, PyYAML, Pillow อยู่แล้ว)
+
+gspread>=6.0.0
+google-auth>=2.27.0
+google-auth-oauthlib>=1.2.0
+google-api-python-client>=2.118.0
