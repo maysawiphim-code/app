@@ -1,16 +1,20 @@
-cookie:
-  expiry_days: 30
-  key: some_signature_key
-  name: some_cookie_name
+# config.yaml
 credentials:
   usernames:
     admin:
       email: admin@example.com
-      name: admin
-      password: $2b$12$Mx0QqWNulrjJmNBn1I7uSeBOk/59BzwpljilvaTkC19Mr7J9wdjHe
-    user1:
-      email: user1@example.com
-      name: User1
-      password: $2b$12$Mx0QqWNulrjJmNBn1I7uSeBOk/59BzwpljilvaTkC19Mr7J9wdjHe
+      name: Administrator
+      password: "$2b$12$presUdW8I9JiaPSr7za9/OQuAVauw6/YWkXdKpxNPfySlt.J19EAC"
+    user:
+      email: user@example.com
+      name: Standard User
+      password: "$2b$12$pa39YZXrPc83KCJOOFdlAeeJKpOF.8vKxYIRZCGXdFZJEt2Wl7F3a"
+
+cookie:
+  expiry_days: 30
+  key: "trip_logger_random_key_999"
+  name: "trip_logger_cookie"
+
 pre-authorized:
-  emails: []
+  emails:
+    - admin@example.com
