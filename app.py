@@ -387,14 +387,18 @@ def upload_to_drive(file_bytes: bytes, filename: str, mime_type: str = "image/pn
         return None, None
     try:
         service = _get_drive_service()
-        folder_id = st.secrets["app"]["drive_folder_id"]
+        # 1. แก้ไขการดึงค่าจาก secrets ให้ถูกต้อง
+        folder_id = st.secrets["app"]["drive_folder_id"] 
 
         media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=mime_type, resumable=False)
-        meta = {"name": filename, "parents": [folder_id]}
+        
+        # 2. แก้ไข parents ให้เป็น List ของ String
+        meta = {"name": filename, "parents": [folder_id]} 
+        
         created = service.files().create(body=meta, media_body=media, fields="id").execute()
         file_id = created["id"]
 
-        # เปิดสิทธิ์อ่านสาธารณะ (anyone with the link) เพื่อให้ดูรูปได้จาก URL ตรงๆ
+        # เปิดสิทธิ์อ่านสาธารณะ
         service.permissions().create(
             fileId=file_id, body={"type": "anyone", "role": "reader"}
         ).execute()
