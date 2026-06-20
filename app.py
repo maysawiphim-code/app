@@ -81,7 +81,8 @@ import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
-
+SHEET_ID = "116BUUyoaU28RMcMWw_-MRpvbuQbbgWUNmRUNm1699I4"
+FOLDER_ID = "1SbEV8l7oKemwgLg-X7hwOkv0KjByF0wg"
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. ค่าคงที่
 # ─────────────────────────────────────────────────────────────────────────────
