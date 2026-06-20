@@ -9,6 +9,10 @@ credentials:
       email: user@example.com
       name: Standard User
       password: "$2b$12$pa39YZXrPc83KCJOOFdlAeeJKpOF.8vKxYIRZCGXdFZJEt2Wl7F3a"
+    user1:
+      email: user1@example.com
+      name: User One
+      password: "$2b$12$h9utmW.dmlTAPkrLZIAK8uvqwyhaBVcRtVgdRqbcTLXvRSDRniAOu"
 
 cookie:
   expiry_days: 30
