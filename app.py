@@ -81,6 +81,21 @@ import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+def get_sheet():
+    # 1. กำหนด Scope ให้เข้าถึง Sheets และ Drive
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    
+    # 2. เชื่อมต่อด้วยไฟล์ JSON (ต้องวางไฟล์นี้ไว้ในโฟลเดอร์เดียวกับโค้ด)
+    creds = ServiceAccountCredentials.from_json_keyfile_name('service_account.json', scope)
+    client = gspread.authorize(creds)
+    
+    # 3. เชื่อมต่อด้วย Sheet ID
+    SHEET_ID = "116BUUyoaU28RMcMWw_-MRpvbuQbbgWUNmRUNm1699I4"
+    sheet = client.open_by_key(SHEET_ID).sheet1
+    return sheet
 SHEET_ID = "116BUUyoaU28RMcMWw_-MRpvbuQbbgWUNmRUNm1699I4"
 FOLDER_ID = "1SbEV8l7oKemwgLg-X7hwOkv0KjByF0wg"
 # ─────────────────────────────────────────────────────────────────────────────
