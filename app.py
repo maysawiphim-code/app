@@ -4,10 +4,26 @@ Trip Logger Pro — Streamlit App
 เก็บรูปภาพบน Google Drive (เก็บแค่ URL ไว้ใน Sheet ไม่เก็บไฟล์ดิบ)
 ส่งอีเมลแจ้งเตือนอัตโนมัติทุกครั้งที่กดบันทึกข้อมูล (โรงแรม/น้ำมัน/รถ)
 
+โครงสร้างข้อมูลใช้ 3 ชีต (worksheet/tab) แยกตามประเภทข้อมูล — แบบ relational
+ไม่ใช่เก็บเป็น JSON ก้อนเดียว เพื่อให้เปิดดู/แก้ไขข้อมูลตรงๆ ใน Google Sheets ได้ง่าย:
+
+  ชีต "sites"  — 1 แถวต่อไซต์งาน (ข้อมูลรถ/ไมล์)
+    คอลัมน์: SiteName, CreatedAt, UpdatedAt, StartMile, EndMile,
+             StartImg_URL, EndImg_URL, CarImg_URL
+
+  ชีต "hotels" — 1 แถวต่อ "ช่องโรงแรม" หนึ่งช่อง (เชื่อมกับ sites ด้วย SiteName)
+    คอลัมน์: SiteName, HotelNo, ItemNo, Desc, Locked, Img_URL
+
+  ชีต "fuel"   — 1 แถวต่อ "การเติมน้ำมัน" หนึ่งครั้ง (เชื่อมกับ sites ด้วย SiteName)
+    คอลัมน์: SiteName, FuelNo, Date, Province, Locked, Bill_URL, Pre_URL, Post_URL
+
+ถ้า worksheet "hotels"/"fuel" ยังไม่มีในไฟล์ Google Sheet ของคุณ ระบบจะสร้าง
+ให้อัตโนมัติพร้อมใส่ header แถวแรกให้เองตอนกดบันทึกครั้งแรก ไม่ต้องสร้างมือ
+
 ═══════════════════════════════════════════════════════════════════════════
 การตั้งค่าที่ต้องทำก่อนใช้งาน (1 ครั้ง)
 ═══════════════════════════════════════════════════════════════════════════
-1. สร้าง Google Sheet ใหม่ 1 ชีต (ชื่ออะไรก็ได้) แล้วแชร์สิทธิ์ "Editor"
+1. ใน Google Sheet ที่มีอยู่แล้ว (ชีต "sites") แชร์สิทธิ์ "Editor"
    ให้กับอีเมลของ Service Account (อยู่ในไฟล์ JSON ที่ key "client_email")
    ทำเช่นเดียวกันกับโฟลเดอร์ Google Drive ที่จะใช้เก็บรูป (แชร์ "Editor")
 
@@ -26,7 +42,7 @@ Trip Logger Pro — Streamlit App
    client_x509_cert_url = "..."
 
    [app]
-   sheet_id = "เลขที่อยู่ใน URL ของ Google Sheet เช่น 1A2B3C..."
+   sheet_id = "116BUUyoaU28RMcMWw_-MRpvbuQbbgWUNmRUNm1699I4"   # จาก URL ของคุณ
    drive_folder_id = "เลขที่อยู่ใน URL ของโฟลเดอร์ Google Drive ที่จะเก็บรูป"
 
    [email]
@@ -74,10 +90,18 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
 ]
-WORKSHEET_NAME = "sites"           # ชื่อ worksheet (tab) ที่ใช้เก็บข้อมูลไซต์งาน
+WORKSHEET_SITES  = "sites"          # ชีตที่คุณสร้างไว้แล้ว: 1 แถวต่อไซต์งาน (รถ/ไมล์)
+WORKSHEET_HOTELS = "hotels"         # ชีตใหม่: 1 แถวต่อ "ช่องโรงแรม" หนึ่งช่อง เชื่อมด้วย SiteName
+WORKSHEET_FUEL   = "fuel"           # ชีตใหม่: 1 แถวต่อ "การเติมน้ำมัน" หนึ่งครั้ง เชื่อมด้วย SiteName
 HOTEL_RANGE = range(1, 4)          # โรงแรม 1-3
 HOTEL_ITEM_RANGE = range(1, 7)     # แต่ละโรงแรมมี 6 ช่อง
 FUEL_RANGE = range(1, 21)          # การเติมน้ำมัน 1-20 ครั้ง
+
+SITES_HEADER  = ["SiteName", "CreatedAt", "UpdatedAt", "StartMile", "EndMile",
+                  "StartImg_URL", "EndImg_URL", "CarImg_URL"]
+HOTELS_HEADER = ["SiteName", "HotelNo", "ItemNo", "Desc", "Locked", "Img_URL"]
+FUEL_HEADER   = ["SiteName", "FuelNo", "Date", "Province", "Locked",
+                  "Bill_URL", "Pre_URL", "Post_URL"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -102,17 +126,37 @@ def _get_drive_service():
     return build("drive", "v3", credentials=creds)
 
 
-def _get_worksheet():
-    """เปิด worksheet 'sites' ใน Google Sheet ที่ตั้งค่าไว้ ถ้าไม่มีให้สร้างใหม่"""
+def _get_or_create_worksheet(sh, title: str, header: list):
+    """เปิด worksheet ถ้ามีอยู่แล้ว ถ้าไม่มีให้สร้างใหม่พร้อมใส่ header แถวแรก"""
+    try:
+        ws = sh.worksheet(title)
+        # ถ้า worksheet มีอยู่แต่ไม่มี header (แถวว่าง) ให้ใส่ header ให้
+        existing = ws.row_values(1)
+        if not existing:
+            ws.update([header], value_input_option="RAW")
+        return ws
+    except gspread.WorksheetNotFound:
+        ws = sh.add_worksheet(title=title, rows=500, cols=len(header) + 2)
+        ws.update([header], value_input_option="RAW")
+        return ws
+
+
+def _get_sheet():
     gc = _get_gspread_client()
     sheet_id = st.secrets["app"]["sheet_id"]
-    sh = gc.open_by_key(sheet_id)
-    try:
-        ws = sh.worksheet(WORKSHEET_NAME)
-    except gspread.WorksheetNotFound:
-        ws = sh.add_worksheet(title=WORKSHEET_NAME, rows=200, cols=4)
-        ws.append_row(["site_name", "data_json", "created_at", "updated_at"])
-    return ws
+    return gc.open_by_key(sheet_id)
+
+
+def _get_sites_ws():
+    return _get_or_create_worksheet(_get_sheet(), WORKSHEET_SITES, SITES_HEADER)
+
+
+def _get_hotels_ws():
+    return _get_or_create_worksheet(_get_sheet(), WORKSHEET_HOTELS, HOTELS_HEADER)
+
+
+def _get_fuel_ws():
+    return _get_or_create_worksheet(_get_sheet(), WORKSHEET_FUEL, FUEL_HEADER)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -121,40 +165,124 @@ def _get_worksheet():
 #     ทำให้ "บันทึกข้อมูลไปแล้วหาย" — Sheets แก้ปัญหานี้เพราะเก็บถาวรภายนอก)
 # ─────────────────────────────────────────────────────────────────────────────
 def json_serial(obj):
-    """ตัวช่วยแปลง date object → string เวลา json.dumps"""
+    """ตัวช่วยแปลง date object → string (เผื่อใช้ในจุดอื่นที่ยัง serialize JSON อยู่)"""
     if isinstance(obj, (datetime.date, datetime.datetime)):
         return obj.isoformat()
     raise TypeError(f"Type {type(obj)} not serializable")
 
 
-def _site_to_json_safe(site_data: dict) -> dict:
-    """
-    แปลงข้อมูลไซต์ก่อนเซฟ:
-    - date object → isoformat string
-    - รูปภาพ: เก็บเฉพาะ "url" (string) ที่ได้จาก Drive ไม่เก็บ bytes ดิบ
-      (ถ้า field ไหนยังเป็น bytes อยู่ แปลว่ายังไม่ได้อัปโหลด Drive
-       ให้ข้ามไปก่อน ป้องกัน JSON เขียนไม่ได้)
-    """
-    out = json.loads(json.dumps(site_data, default=json_serial))
-    return out
+def _bool_to_cell(v) -> str:
+    return "TRUE" if v else "FALSE"
+
+
+def _cell_to_bool(v) -> bool:
+    return str(v).strip().upper() in ("TRUE", "1", "YES", "ใช่")
+
+
+def _empty_site(site_name: str) -> dict:
+    """โครงสร้างไซต์งานเปล่า (ใช้ทั้งตอนสร้างใหม่และตอนเติม default ให้ไซต์ที่ขาดบางส่วน)"""
+    return {
+        "created_at": "",
+        "updated_at": "",
+        "hotels": {
+            h: {i: {"img": None, "img_id": None, "desc": "", "locked": False}
+                for i in HOTEL_ITEM_RANGE}
+            for h in HOTEL_RANGE
+        },
+        "fuel": {
+            n: {
+                "bill": None, "pre": None, "post": None,
+                "bill_id": None, "pre_id": None, "post_id": None,
+                "locked": False,
+                "date": datetime.date.today(),
+                "province": "",
+            }
+            for n in FUEL_RANGE
+        },
+        "start_mile": 0,
+        "end_mile": 0,
+        "start_img": None, "end_img": None, "car_img": None,
+    }
 
 
 def load_sites() -> dict:
-    """โหลดข้อมูลทุกไซต์จาก Google Sheets"""
+    """
+    โหลดข้อมูลทุกไซต์จาก Google Sheets — รวม 3 ชีต (sites/hotels/fuel) เข้าด้วยกัน
+    เป็นโครงสร้าง dict เดียวกับที่ UI ใช้งาน (st.session_state.sites)
+    """
     try:
-        ws = _get_worksheet()
-        records = ws.get_all_records()
-        sites = {}
-        for row in records:
-            name = row.get("site_name")
-            raw  = row.get("data_json")
-            if not name or not raw:
+        sites: dict = {}
+
+        # ── 1. ชีต sites: ข้อมูลระดับไซต์งาน (รถ/ไมล์) ──
+        ws_sites = _get_sites_ws()
+        for row in ws_sites.get_all_records():
+            name = str(row.get("SiteName", "")).strip()
+            if not name:
+                continue
+            site = _empty_site(name)
+            site["created_at"] = row.get("CreatedAt", "")
+            site["updated_at"] = row.get("UpdatedAt", "")
+            try:
+                site["start_mile"] = int(row.get("StartMile") or 0)
+            except (ValueError, TypeError):
+                site["start_mile"] = 0
+            try:
+                site["end_mile"] = int(row.get("EndMile") or 0)
+            except (ValueError, TypeError):
+                site["end_mile"] = 0
+            site["start_img"] = row.get("StartImg_URL") or None
+            site["end_img"]   = row.get("EndImg_URL") or None
+            site["car_img"]   = row.get("CarImg_URL") or None
+            sites[name] = site
+
+        # ── 2. ชีต hotels: เติมข้อมูลโรงแรมเข้าไปในแต่ละไซต์ ──
+        ws_hotels = _get_hotels_ws()
+        for row in ws_hotels.get_all_records():
+            name = str(row.get("SiteName", "")).strip()
+            if name not in sites:
+                continue  # โรงแรมของไซต์ที่ไม่มีในชีต sites แล้ว (ถูกลบไปแล้ว) ข้ามทิ้ง
+            try:
+                h = int(row.get("HotelNo"))
+                i = int(row.get("ItemNo"))
+            except (ValueError, TypeError):
+                continue
+            if h not in HOTEL_RANGE or i not in HOTEL_ITEM_RANGE:
+                continue
+            sites[name]["hotels"][h][i] = {
+                "desc":   row.get("Desc", ""),
+                "locked": _cell_to_bool(row.get("Locked")),
+                "img":    row.get("Img_URL") or None,
+                "img_id": None,
+            }
+
+        # ── 3. ชีต fuel: เติมข้อมูลการเติมน้ำมันเข้าไปในแต่ละไซต์ ──
+        ws_fuel = _get_fuel_ws()
+        for row in ws_fuel.get_all_records():
+            name = str(row.get("SiteName", "")).strip()
+            if name not in sites:
                 continue
             try:
-                data = json.loads(raw)
-            except Exception:
+                n = int(row.get("FuelNo"))
+            except (ValueError, TypeError):
                 continue
-            sites[name] = _normalize_site(data)
+            if n not in FUEL_RANGE:
+                continue
+            date_val = row.get("Date", "")
+            try:
+                date_obj = (datetime.date.fromisoformat(str(date_val))
+                            if date_val else datetime.date.today())
+            except Exception:
+                date_obj = datetime.date.today()
+            sites[name]["fuel"][n] = {
+                "date":     date_obj,
+                "province": row.get("Province", ""),
+                "locked":   _cell_to_bool(row.get("Locked")),
+                "bill":     row.get("Bill_URL") or None,
+                "pre":      row.get("Pre_URL") or None,
+                "post":     row.get("Post_URL") or None,
+                "bill_id":  None, "pre_id": None, "post_id": None,
+            }
+
         return sites
     except Exception as e:
         st.warning(f"⚠️ โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ: {e}\n\n"
@@ -163,75 +291,72 @@ def load_sites() -> dict:
 
 
 def save_sites(sites: dict):
-    """บันทึกข้อมูลทุกไซต์ลง Google Sheets (เขียนทับทั้ง worksheet)"""
+    """
+    บันทึกข้อมูลทุกไซต์ลง Google Sheets — เขียนทับทั้ง 3 ชีต (sites/hotels/fuel)
+    ตามแถวที่มีข้อมูลจริงเท่านั้น (โรงแรม/น้ำมันช่องที่ยังว่างไม่ถูกเขียนแถว
+    เพื่อไม่ให้ชีตยาวเกินจำเป็น — โหลดกลับมาจะเติม default ให้เองผ่าน _empty_site)
+    """
     try:
-        ws = _get_worksheet()
-        rows = [["site_name", "data_json", "created_at", "updated_at"]]
+        # ── 1. ชีต sites ──
+        ws_sites = _get_sites_ws()
+        sites_rows = [SITES_HEADER]
         for name, data in sites.items():
-            safe_data = _site_to_json_safe(data)
-            rows.append([
+            sites_rows.append([
                 name,
-                json.dumps(safe_data, ensure_ascii=False, default=json_serial),
                 data.get("created_at", ""),
                 data.get("updated_at", ""),
+                data.get("start_mile", 0),
+                data.get("end_mile", 0),
+                data.get("start_img") or "",
+                data.get("end_img") or "",
+                data.get("car_img") or "",
             ])
-        ws.clear()
-        ws.update(rows, value_input_option="RAW")
+        ws_sites.clear()
+        ws_sites.update(sites_rows, value_input_option="RAW")
+
+        # ── 2. ชีต hotels — เขียนเฉพาะช่องที่มีการบันทึก (locked) หรือมีคำอธิบาย ──
+        ws_hotels = _get_hotels_ws()
+        hotels_rows = [HOTELS_HEADER]
+        for name, data in sites.items():
+            for h, h_data in data.get("hotels", {}).items():
+                for i, item in h_data.items():
+                    if not item.get("locked") and not item.get("desc") and not item.get("img"):
+                        continue  # ช่องว่างเปล่า ไม่ต้องเขียนแถว
+                    hotels_rows.append([
+                        name, h, i,
+                        item.get("desc", ""),
+                        _bool_to_cell(item.get("locked", False)),
+                        item.get("img") or "",
+                    ])
+        ws_hotels.clear()
+        ws_hotels.update(hotels_rows, value_input_option="RAW")
+
+        # ── 3. ชีต fuel — เขียนเฉพาะรายการที่มีการบันทึก (locked) หรือมีข้อมูล ──
+        ws_fuel = _get_fuel_ws()
+        fuel_rows = [FUEL_HEADER]
+        for name, data in sites.items():
+            for n, item in data.get("fuel", {}).items():
+                has_data = (item.get("locked") or item.get("province")
+                            or item.get("bill") or item.get("pre") or item.get("post"))
+                if not has_data:
+                    continue
+                date_val = item.get("date")
+                date_str = date_val.isoformat() if isinstance(date_val, (datetime.date, datetime.datetime)) else str(date_val or "")
+                fuel_rows.append([
+                    name, n, date_str,
+                    item.get("province", ""),
+                    _bool_to_cell(item.get("locked", False)),
+                    item.get("bill") or "",
+                    item.get("pre") or "",
+                    item.get("post") or "",
+                ])
+        ws_fuel.clear()
+        ws_fuel.update(fuel_rows, value_input_option="RAW")
+
     except Exception as e:
         st.error(f"❌ บันทึกข้อมูลลง Google Sheets ไม่สำเร็จ: {e}")
         with st.expander("รายละเอียด error (สำหรับแก้ปัญหา)"):
             st.code(traceback.format_exc())
-
-
-def _normalize_site(site_data: dict) -> dict:
-    """
-    แปลงข้อมูลที่โหลดจาก Sheets กลับเป็นรูปแบบที่ใช้งานใน session_state:
-    - key จาก str → int (Sheets/JSON เก็บ key เป็น string เสมอ)
-    - วันที่ string → date object
-    - รูปภาพ: เก็บเป็น URL string (จาก Drive) ไว้ใช้แสดงผล/ใส่ลง Word ตรงๆ
-    """
-    if "hotels" in site_data:
-        hotels = {}
-        for h_str, h_data in site_data["hotels"].items():
-            h = int(h_str)
-            hotels[h] = {}
-            for i_str, item in h_data.items():
-                i = int(i_str)
-                hotels[h][i] = {
-                    "desc":   item.get("desc", ""),
-                    "locked": item.get("locked", False),
-                    "img":    item.get("img"),       # เก็บเป็น Drive URL (str) หรือ None
-                    "img_id": item.get("img_id"),     # Drive file id (สำหรับลบ/แทนที่ในอนาคต)
-                }
-        site_data["hotels"] = hotels
-
-    if "fuel" in site_data:
-        fuel = {}
-        for n_str, item in site_data["fuel"].items():
-            n = int(n_str)
-            date_val = item.get("date", "")
-            try:
-                date_obj = (datetime.date.fromisoformat(date_val)
-                            if date_val else datetime.date.today())
-            except Exception:
-                date_obj = datetime.date.today()
-            fuel[n] = {
-                "date":     date_obj,
-                "province": item.get("province", ""),
-                "locked":   item.get("locked", False),
-                "bill":     item.get("bill"),
-                "pre":      item.get("pre"),
-                "post":     item.get("post"),
-                "bill_id":  item.get("bill_id"),
-                "pre_id":   item.get("pre_id"),
-                "post_id":  item.get("post_id"),
-            }
-        site_data["fuel"] = fuel
-
-    for key in ["start_img", "end_img", "car_img"]:
-        site_data.setdefault(key, None)
-
-    return site_data
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -413,9 +538,15 @@ def admin_panel():
     with st.expander("🔌 ตรวจสอบการเชื่อมต่อ Google Sheets / Drive"):
         if st.button("ทดสอบการเชื่อมต่อ"):
             try:
-                ws = _get_worksheet()
-                st.success(f"✅ เชื่อม Google Sheets สำเร็จ (worksheet: {ws.title}, "
-                           f"แถวข้อมูล: {len(ws.get_all_values())-1})")
+                ws_s = _get_sites_ws()
+                ws_h = _get_hotels_ws()
+                ws_f = _get_fuel_ws()
+                st.success(
+                    f"✅ เชื่อม Google Sheets สำเร็จ — "
+                    f"sites: {len(ws_s.get_all_values())-1} แถว, "
+                    f"hotels: {len(ws_h.get_all_values())-1} แถว, "
+                    f"fuel: {len(ws_f.get_all_values())-1} แถว"
+                )
             except Exception as e:
                 st.error(f"❌ เชื่อม Google Sheets ไม่สำเร็จ: {e}")
             try:
@@ -440,28 +571,10 @@ def now_str() -> str:
 def init_site(site_name: str):
     """สร้างหรือโหลดข้อมูลไซต์ใน session_state"""
     if site_name not in st.session_state.sites:
-        st.session_state.sites[site_name] = {
-            "created_at": now_str(),
-            "updated_at": now_str(),
-            "hotels": {
-                h: {i: {"img": None, "img_id": None, "desc": "", "locked": False}
-                    for i in HOTEL_ITEM_RANGE}
-                for h in HOTEL_RANGE
-            },
-            "fuel": {
-                n: {
-                    "bill": None, "pre": None, "post": None,
-                    "bill_id": None, "pre_id": None, "post_id": None,
-                    "locked": False,
-                    "date": datetime.date.today(),
-                    "province": "",
-                }
-                for n in FUEL_RANGE
-            },
-            "start_mile": 0,
-            "end_mile":   0,
-            "start_img": None, "end_img": None, "car_img": None,
-        }
+        new_site = _empty_site(site_name)
+        new_site["created_at"] = now_str()
+        new_site["updated_at"] = now_str()
+        st.session_state.sites[site_name] = new_site
     st.session_state.current_site = site_name
     st.session_state.hotels = st.session_state.sites[site_name]["hotels"]
     st.session_state.fuel   = st.session_state.sites[site_name]["fuel"]
