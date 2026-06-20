@@ -3,13 +3,14 @@ import io
 import os
 import datetime
 import json
-
+import smtplib
+from email.message import EmailMessage
 from docx import Document
 from docx.shared import Inches
 import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
-from PIL import Image  # 👈 นำเข้า Pillow สำหรับแปลงฟอร์แมตภาพอัตโนมัติ
+from PIL import Image
 
 # ─────────────────────────────────────────────
 # 1. ค่าคงที่และฟังก์ชันจัดการข้อมูลผู้ใช้
@@ -79,6 +80,38 @@ def _normalize_site(site_data: dict) -> dict:
         site_data[key] = decode_img(site_data.get(key))
 
     return site_data
+# ─────────────────────────────────────────────
+# 2. ระบบส่งอีเมล (เพิ่มใหม่)
+# ─────────────────────────────────────────────
+def send_email_report(site_name, buf):
+    sender = "your-email@gmail.com"      # ใส่ Email ของคุณ
+    password = "your-app-password"       # ใส่ App Password (ห้ามใส่รหัสผ่านปกติ)
+    recipient = "sawitreephi@cpall.co.th"    # อีเมลผู้รับ
+    
+    msg = EmailMessage()
+    msg['Subject'] = f"Trip Report — {site_name}"
+    msg['From'] = sender
+    msg['To'] = recipient
+    msg.set_content(f"ส่งรายงานไซต์งาน: {site_name} ในวันที่ {datetime.datetime.now().strftime('%d/%m/%Y')}")
+    
+    msg.add_attachment(
+        buf.getvalue(),
+        maintype='application',
+        subtype='octet-stream',
+        filename=f"Trip_Report_{site_name}.docx"
+    )
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.login(sender, password)
+        smtp.send_message(msg)
+# ─────────────────────────────────────────────
+# 3. ฟังก์ชันจัดการสถานะ (เพิ่ม Auto-save)
+# ─────────────────────────────────────────────
+def save_and_touch():
+    site = st.session_state.get("current_site")
+    if site and site in st.session_state.sites:
+        st.session_state.sites[site]["updated_at"] = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+        save_sites(st.session_state.sites)
 
 def load_sites() -> dict:
     """โหลดข้อมูลทุกไซต์จากไฟล์ JSON"""
@@ -541,32 +574,41 @@ def render_fuel_section():
 # 9. UI: Export
 # ─────────────────────────────────────────────
 def render_export_section():
-    site     = st.session_state.get("current_site", "trip")
+    site = st.session_state.get("current_site", "trip")
     filename = f"Trip_Report_{site}.docx"
-    mime     = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    
+    # 1. ประกาศตัวแปร mime ที่นี่ก่อนใช้งานครับ
+    mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
     try:
-        buf  = generate_word()
+        buf = generate_word()
         data = buf.getvalue()
-        ok   = True
-        err  = ""
+        ok = True
     except Exception as e:
-        ok  = False
-        err = str(e)
+        ok = False
+        st.error(f"สร้างไฟล์ไม่ได้: {e}")
 
-    # Sidebar
-    st.sidebar.header("📤 Export Reports")
     if ok:
-        st.sidebar.download_button(
+        st.divider()
+        st.header("📤 Export และส่งรายงาน")
+        
+        # 2. แก้ไขการเรียกใช้งานให้ใช้ตัวแปรที่ประกาศไว้
+        st.download_button(
             label="📥 ดาวน์โหลด Word",
-            data=data, file_name=filename, mime=mime, key="dl_sidebar",
+            data=data, 
+            file_name=filename, 
+            mime=mime,  # ตอนนี้ตัวแปรนี้ถูกประกาศแล้วจะไม่มี Error
+            use_container_width=True
         )
-    else:
-        st.sidebar.error(f"สร้างไฟล์ไม่ได้: {err}")
 
-    # หน้าหลัก
-    st.divider()
-    st.header("📤 Export รายงาน")
+        # ส่งอีเมลสำหรับ Admin เท่านั้น
+        if st.session_state.get("username") == "admin":
+            if st.button("📧 ส่งรายงานผ่านอีเมล (Admin Only)", type="secondary", use_container_width=True):
+                try:
+                    send_email_report(site, buf)
+                    st.success("✅ ส่งอีเมลรายงานเรียบร้อยแล้ว")
+                except Exception as e:
+                    st.error(f"❌ ส่งอีเมลไม่สำเร็จ: {e}")
 
     hotel_count = sum(
         1 for h in range(1, 4) for i in range(1, 7)
